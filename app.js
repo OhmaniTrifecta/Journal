@@ -133,7 +133,78 @@
     { id: 'owl', s: '🦉', n: 'Night Owl', h: 'Write after 9 pm', t: (s) => s.night },
     { id: 'bird', s: '🐦', n: 'Early Bird', h: 'Write before 8 am', t: (s) => s.early },
     { id: 'prompt', s: '💡', n: 'Big Thinker', h: 'Answer 5 prompts', t: (s) => s.prompts >= 5 },
+    { id: 'brave', s: '🦁', n: 'Brave Heart', h: 'Write on a tough day', t: (s) => s.tough >= 1 },
+    { id: 'calm', s: '☁️', n: 'Calm Cloud', h: 'Finish a breathing exercise', t: (s) => s.breathe >= 1 },
+    { id: 'letgo', s: '🎈', n: 'Let It Go', h: 'Float a worry away', t: (s) => s.letgo >= 1 },
   ];
+
+  /* ---------- Comfort Corner content (for hard days) ---------- */
+  // Encouragement shown when she picks (and saves) a tough mood.
+  const MOOD_COMFORT = {
+    worried: {
+      e: '☁️', title: 'Worries are like clouds',
+      msg: 'They can feel really big, but they always drift by. You have gotten through hard things before, and you can get through this too. 💛',
+      tips: ['🌬️ Take 5 slow, deep breaths', '📝 Write down what you <i>can</i> control', '🗣️ Share the worry with someone you trust'],
+    },
+    sad: {
+      e: '🌧️', title: 'It is okay to feel sad',
+      msg: 'Feelings are like waves. They come, and they go. Be extra gentle with yourself today, the way you would be with a friend. 💙',
+      tips: ['🛋️ Get cozy with a blanket and a favorite show', '🤗 Ask for a hug', '🎵 Play a song that makes you feel better'],
+    },
+    mad: {
+      e: '🌋', title: 'Mad is a normal feeling',
+      msg: 'Feeling mad often means something really matters to you. Let your body cool down first, and then you can figure out what to do next. 💪',
+      tips: ['🚶 Go for a walk or move your body', '🫧 Breathe out slooowly, like blowing bubbles', '🧸 Squeeze a pillow or stuffie really hard'],
+    },
+  };
+
+  // Gentle prompts for tough days that help her look for hope and next steps.
+  const TOUGH_PROMPTS = [
+    'What would you say to a best friend who felt the way you feel right now?',
+    'What is one small thing that could make the rest of today a tiny bit better?',
+    'What is a hard thing you got through before? What helped you then?',
+    'Who is someone who always has your back?',
+    'What is one thing you are looking forward to, even if it is small?',
+    'What is something you like about yourself, even on hard days?',
+    'If this feeling was the weather, what would it be? What would help the sun come out?',
+    'What is one kind thing you can do for yourself today?',
+  ];
+
+  const KIND_NOTES = [
+    'You are so much stronger than you know. 💪',
+    'Hard days do not last forever. Brighter ones are coming. 🌤️',
+    'You are loved, exactly as you are. 💖',
+    'It is brave to feel your feelings. 🦁',
+    'You do not have to be perfect to be amazing. ✨',
+    'Rest is not giving up. It is recharging. 🔋',
+    'You have made it through every hard day so far. That is a 100% success rate! 🌟',
+    'Your feelings are real, and they matter. 💛',
+    'Asking for help is a superpower. 🦸‍♀️',
+    'Tomorrow is a brand-new page. 📖',
+    'The world is better because you are in it. 🌍',
+    'Be as kind to yourself as you are to your friends. 🌷',
+    'Little by little, things get better. 🐢',
+    'You are not alone. Not ever. 🤝',
+  ];
+
+  const FEEL_BETTER = [
+    ['🎵', 'Play your favorite song'], ['🚶‍♀️', 'Take a walk outside'], ['🐶', 'Cuddle a pet or stuffie'],
+    ['💧', 'Drink a glass of water'], ['🎨', 'Draw or doodle'], ['🛁', 'Take a warm shower'],
+    ['💃', 'Have a mini dance party'], ['📞', 'Call or text a friend'], ['😴', 'Rest — feelings are tiring!'],
+    ['🍪', 'Have a yummy snack'], ['🌞', 'Sit in the sunshine'], ['😂', 'Watch something funny'],
+  ];
+
+  const GROUNDING = [
+    { n: 5, e: '👀', t: 'things you can <b>see</b>' },
+    { n: 4, e: '✋', t: 'things you can <b>touch</b>' },
+    { n: 3, e: '👂', t: 'things you can <b>hear</b>' },
+    { n: 2, e: '👃', t: 'things you can <b>smell</b>' },
+    { n: 1, e: '😋', t: 'thing you can <b>taste</b>' },
+  ];
+
+  // If an entry mentions wanting to hurt herself, she gets a caring message with ways to reach help.
+  // Nothing is sent anywhere; this only shows a message on her phone.
+  const SAFETY_WORDS = /\b(kill(ing)? myself|want(ed)? to die|wanna die|end (it all|my life)|suicid\w*|hurt(ing)? myself|self[- ]?harm\w*|cut(ting)? myself|don'?t want to (be here|live|exist)|better off without me)\b/i;
 
   const THEMES = [
     { id: 'pink', n: 'Bubblegum', c: '#ff6fa5', bar: '#ffe3ee' },
@@ -148,7 +219,7 @@
      Settings (small stuff, localStorage)
      ========================================================= */
   const SKEY = 'journal.settings';
-  const DEFAULTS = { name: '', theme: 'pink', pinHash: '', pinHint: '', onboarded: false, stickers: {}, lockAfter: 60, promptOffset: 0, lastBackup: 0, hideInstallTip: false };
+  const DEFAULTS = { name: '', theme: 'pink', pinHash: '', pinHint: '', onboarded: false, stickers: {}, lockAfter: 60, promptOffset: 0, lastBackup: 0, hideInstallTip: false, comfort: { breathe: 0, letgo: 0 } };
   let settings = loadSettings();
   function loadSettings() {
     try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SKEY) || '{}') }; } catch { return { ...DEFAULTS }; }
@@ -282,6 +353,9 @@
       night: hours.some((h) => h >= 21),
       early: hours.some((h) => h >= 4 && h < 8),
       prompts: entries.filter((e) => e.prompt).length,
+      tough: entries.filter((e) => TOUGH_MOODS.includes(e.mood)).length,
+      breathe: settings.comfort?.breathe || 0,
+      letgo: settings.comfort?.letgo || 0,
     };
   }
 
@@ -594,12 +668,14 @@
     const memories = onThisDay();
     const needsBackup = entries.length >= 3 && Date.now() - (settings.lastBackup || 0) > 30 * 86400000;
     const stickerCount = Object.keys(settings.stickers).length;
+    const last = entries[0];
+    const recentTough = last && TOUGH_MOODS.includes(last.mood) && last.date >= addDays(todayKey(), -2);
 
     render(`
       <div class="greet">
         <div class="date">${fmtLong(todayKey())}</div>
         <h1 class="hand">${greet[0]}, ${esc(settings.name)}! ${greet[1]}</h1>
-        <div class="muted">${AFFIRMATIONS[day % AFFIRMATIONS.length]}</div>
+        <div class="muted">${recentTough ? 'I hope today feels a little brighter. 🌤️' : AFFIRMATIONS[day % AFFIRMATIONS.length]}</div>
       </div>
       <div class="stack">
         <div class="stats">
@@ -607,6 +683,14 @@
           <div class="card stat"><b>📖 ${s.count}</b><span>entries</span></div>
           <div class="card stat"><b>🏅 ${stickerCount}</b><span>stickers</span></div>
         </div>
+
+        ${draft?.dirty ? `<a class="card entry" href="${draftHref()}"><div class="mood">✏️</div><div class="body"><div class="title">Finish your entry</div><div class="snippet">You have an entry you haven't saved yet.</div></div></a>` : ''}
+
+        <a class="card comfort-link ${recentTough ? 'glow' : ''}" href="#/comfort">
+          <span class="big">💛</span>
+          <span><b>Comfort Corner</b><br><span class="muted small">${recentTough ? 'Some calm-down tools and kind words, just for you' : 'For when you need a little boost'}</span></span>
+          <span class="muted">›</span>
+        </a>
 
         <div class="card prompt-card">
           <div class="row between"><b>${s.wroteToday ? '✨ You wrote today! Want to write more?' : '💡 Today\'s prompt'}</b>
@@ -738,6 +822,8 @@
           </div>
         </div>
 
+        <div id="toughSlot">${toughSlotHtml()}</div>
+
         <div id="promptSlot">${promptSlotHtml()}</div>
 
         <input class="input" id="title" maxlength="80" placeholder="Give it a title (optional)" value="${esc(d.title)}">
@@ -781,13 +867,18 @@
         d.mood = d.mood === el.dataset.m ? '' : el.dataset.m;
         d.dirty = true;
         document.querySelectorAll('.moods button').forEach((b) => b.classList.toggle('on', b.dataset.m === d.mood));
+        $('#toughSlot').innerHTML = toughSlotHtml();
+      },
+      gentlePrompt: () => {
+        d.prompt = pick(TOUGH_PROMPTS.filter((p) => p !== d.prompt)); d.dirty = true;
+        $('#promptSlot').innerHTML = promptSlotHtml();
       },
       fav: (el) => {
         d.favorite = !d.favorite; d.dirty = true;
         el.textContent = d.favorite ? '❤️' : '🤍';
         el.setAttribute('aria-pressed', d.favorite);
       },
-      newPrompt: () => { d.prompt = pick(PROMPTS.filter((p) => p !== d.prompt)); d.dirty = true; $('#promptSlot').innerHTML = promptSlotHtml(); },
+      newPrompt: () => { d.prompt = pick((TOUGH_MOODS.includes(d.mood) ? TOUGH_PROMPTS : PROMPTS).filter((p) => p !== d.prompt)); d.dirty = true; $('#promptSlot').innerHTML = promptSlotHtml(); },
       clearPrompt: () => { d.prompt = ''; d.dirty = true; $('#promptSlot').innerHTML = promptSlotHtml(); },
       addPhoto: () => $('#file').click(),
       removePhoto: (el) => { d.photos = d.photos.filter((p) => p !== el.dataset.id); d.dirty = true; renderEditorPhotos(); },
@@ -795,6 +886,18 @@
       cancel: cancelDraft,
       delete: () => confirmDelete(entry),
     };
+  }
+
+  function toughSlotHtml() {
+    const c = MOOD_COMFORT[draft.mood];
+    if (!c) return '';
+    return `<div class="card comfort-card fade-in">
+      <b>${c.e} ${c.title}</b>
+      <p class="small" style="margin:6px 0 10px">Writing about it can help you feel lighter. Write as much or as little as you want. 💛</p>
+      <div class="row" style="flex-wrap:wrap;gap:8px">
+        <button class="chip" data-act="gentlePrompt">💡 Try a gentle prompt</button>
+        <a class="chip" href="#/comfort" style="text-decoration:none;color:inherit">💛 Comfort Corner</a>
+      </div></div>`;
   }
 
   function promptSlotHtml() {
@@ -877,32 +980,59 @@
     sortEntries();
     const isNew = !d.original;
     draft = null;
-    location.replace(`#/entry/${entry.id}`);
+    history.replaceState(null, '', `#/entry/${entry.id}`);
+    route();
 
     const fresh = checkStickers();
     const tough = TOUGH_MOODS.includes(entry.mood);
-    if (tough) $('#confetti').innerHTML = '';
-    if (fresh.length) {
-      if (!tough) confetti(50);
-      showStickerModal(fresh, tough);
-    } else if (tough && isNew) {
-      modal(`<div class="s">🫂</div>
-        <h2 class="hand">Thanks for writing it down</h2>
-        <p>Tough days happen to everyone, and they don't last forever. 💛</p>
-        <p class="muted small">Talking to someone you trust, like a parent, friend, or school counselor, can really help too.</p>
-        <button class="btn block" data-act="close">Okay 💛</button>`);
+    const moodChanged = isNew || d.original.mood !== entry.mood;
+    if (SAFETY_WORDS.test(`${entry.title} ${entry.body}`)) {
+      $('#confetti').innerHTML = '';
+      showSafetyModal();
+    } else if (tough && moodChanged) {
+      $('#confetti').innerHTML = '';
+      showMoodComfort(entry.mood, fresh);
+    } else if (fresh.length) {
+      confetti(50);
+      showStickerModal(fresh);
     } else {
       if (isNew) confetti(18);
       toast(isNew ? pick(CHEERS) : 'Changes saved ✨');
     }
   }
 
-  function showStickerModal(fresh, tough) {
+  // Kind, mood-specific encouragement after writing on a tough day.
+  function showMoodComfort(mood, fresh = []) {
+    const c = MOOD_COMFORT[mood];
+    modal(`<div class="s">${c.e}</div>
+      <h2 class="hand">${c.title}</h2>
+      <p>${c.msg}</p>
+      <div class="tips">${c.tips.map((t) => `<div>${t}</div>`).join('')}</div>
+      <p class="muted small">Writing it down was a brave and healthy thing to do. 🦁${fresh.length ? `<br>You earned: <b>${fresh.map((f) => `${f.s} ${esc(f.n)}`).join(', ')}</b>` : ''}</p>
+      <a class="btn block" href="#/comfort" data-act="close">Visit Comfort Corner 💛</a>
+      <button class="btn soft block" data-act="close">Thank you</button>`);
+  }
+
+  // Shown when an entry sounds like she might be thinking about hurting herself.
+  function showSafetyModal() {
+    modal(`<div class="s">💛</div>
+      <h2 class="hand">You matter so much</h2>
+      <p>It sounds like you are carrying something really heavy right now. You do not have to carry it alone.</p>
+      <p>Please tell a grown-up you trust <b>today</b>, like a parent, family member, teacher, or school counselor. They will want to help.</p>
+      <p class="small">You can also call or text <b>988</b> any time, day or night. Kind people are there to listen, and it is free.</p>
+      <div class="row" style="gap:8px">
+        <a class="btn block" style="flex:1" href="tel:988">📞 Call 988</a>
+        <a class="btn block" style="flex:1" href="sms:988">💬 Text 988</a>
+      </div>
+      <a class="btn soft block" href="#/comfort" data-act="close">Visit Comfort Corner</a>
+      <button class="btn soft block" data-act="close">Close</button>`);
+  }
+
+  function showStickerModal(fresh) {
     const first = fresh[0];
     modal(`<div class="s">${first.s}</div>
       <h2 class="hand">New sticker${fresh.length > 1 ? 's' : ''}!</h2>
       <p><b>${fresh.map((f) => `${f.s} ${esc(f.n)}`).join('<br>')}</b></p>
-      ${tough ? '<p class="muted small">And thanks for sharing your feelings. Tough days pass. 💛</p>' : ''}
       <button class="btn block" data-act="close">Yay! 🎉</button>
       <a class="btn soft block" href="#/stickers" data-act="close">See my sticker book</a>`);
   }
@@ -961,7 +1091,7 @@
       await idb.put('entries', e);
       if (e.favorite) toast('Added to favorites ❤️');
       const fresh = checkStickers();
-      if (fresh.length) { confetti(50); showStickerModal(fresh, false); }
+      if (fresh.length) { confetti(50); showStickerModal(fresh); }
     };
     viewActs.zoom = (el) => {
       const lb = document.createElement('div');
@@ -970,6 +1100,186 @@
       lb.addEventListener('click', () => lb.remove());
       document.body.appendChild(lb);
     };
+  }
+
+  /* =========================================================
+     Comfort Corner
+     ========================================================= */
+  const draftHref = () => (draft.key === 'new' ? '#/new' : `#/edit/${draft.key}`);
+  let breathTimer;
+  let groundStep = 0;
+  let groundTaps = 0;
+
+  function happyJarItems() {
+    const items = [];
+    entries.forEach((e) => {
+      (e.gratitude || []).filter(Boolean).forEach((g) => items.push({ text: g, e }));
+      if ((e.favorite || ['amazing', 'happy'].includes(e.mood)) && e.title) items.push({ text: e.title, e });
+    });
+    return items;
+  }
+
+  function renderComfort() {
+    clearTimeout(breathTimer);
+    const back = draft?.dirty ? draftHref() : '#/';
+    render(`
+      <div class="topbar">
+        <a class="icon-btn" href="${back}" aria-label="Back" style="text-decoration:none">←</a>
+        <h2 class="hand">Comfort Corner 💛</h2>
+        <span style="width:44px"></span>
+      </div>
+      <div class="stack">
+        <p class="center muted" style="margin-top:0">Whatever you are feeling is okay. Let's take care of you. 🌷</p>
+
+        <div class="card center">
+          <b>🌬️ Breathe with me</b>
+          <div class="breath"><div class="bubble" id="bubble"></div></div>
+          <div class="hand" id="breathText" style="font-size:1.6rem;min-height:2rem">Ready when you are</div>
+          <button class="btn block" data-act="breathe" id="breathBtn" style="margin-top:10px">Start (1 minute)</button>
+        </div>
+
+        <div class="card center">
+          <b>💌 A kind note for you</b>
+          <div class="hand" id="note" style="font-size:1.6rem;margin:10px 0">${pick(KIND_NOTES)}</div>
+          <button class="btn soft" data-act="note">Open another note</button>
+        </div>
+
+        <div class="card">
+          <b>🎈 Let a worry float away</b>
+          <p class="muted small" style="margin:6px 0 10px">Type a worry, then let it go. This is <b>not</b> saved anywhere.</p>
+          <textarea class="input" id="worry" rows="3" maxlength="200" placeholder="I'm worried about..."></textarea>
+          <button class="btn block" data-act="letgo" style="margin-top:10px">Let it float away 🎈</button>
+        </div>
+
+        <div class="card center" id="ground"></div>
+
+        <div class="card center">
+          <b>🫙 My happy jar</b>
+          <p class="muted small" style="margin:6px 0 0">Good things from your own journal</p>
+          <div id="jar"></div>
+        </div>
+
+        <div class="card">
+          <b>🌈 Feel-better ideas</b>
+          <div class="ideas">${FEEL_BETTER.map(([e, t]) => `<div><span>${e}</span>${t}</div>`).join('')}</div>
+        </div>
+
+        <div class="card">
+          <b>🤝 You are never alone</b>
+          <p style="margin:8px 0">Talking to someone you trust really helps. Big feelings get smaller when you share them. Try a parent, grandparent, aunt or uncle, teacher, coach, school counselor, or a good friend.</p>
+          <p class="muted small" style="margin:8px 0 12px">If you ever feel really overwhelmed, unsafe, or like you might hurt yourself, please tell a grown-up right away. You can also call or text <b>988</b> any time, day or night, to talk with someone kind. It is free.</p>
+          <div class="row" style="gap:8px">
+            <a class="btn soft block" style="flex:1" href="tel:988">📞 Call 988</a>
+            <a class="btn soft block" style="flex:1" href="sms:988">💬 Text 988</a>
+          </div>
+        </div>
+      </div>`, 'home');
+
+    groundStep = 0; groundTaps = 0;
+    renderGround();
+    shakeJar();
+
+    viewActs.note = () => {
+      const el = $('#note');
+      el.textContent = pick(KIND_NOTES.filter((n) => n !== el.textContent));
+    };
+    viewActs.breathe = startBreathing;
+    viewActs.letgo = letWorryGo;
+    viewActs.jar = shakeJar;
+    viewActs.tap = () => {
+      groundTaps++;
+      const g = GROUNDING[groundStep];
+      if (groundTaps >= g.n) { groundStep++; groundTaps = 0; }
+      renderGround();
+    };
+    viewActs.groundAgain = () => { groundStep = 0; groundTaps = 0; renderGround(); };
+  }
+
+  function renderGround() {
+    const box = $('#ground');
+    if (!box) return;
+    if (groundStep >= GROUNDING.length) {
+      box.innerHTML = `<b>🌿 5-4-3-2-1 calm down</b>
+        <div style="font-size:3rem;margin:10px 0">🌟</div>
+        <p class="hand" style="font-size:1.6rem;margin:0 0 10px">You are right here, right now, and you are doing great. 💛</p>
+        <button class="btn soft" data-act="groundAgain">Do it again</button>`;
+      return;
+    }
+    const g = GROUNDING[groundStep];
+    box.innerHTML = `<b>🌿 5-4-3-2-1 calm down</b>
+      <p class="muted small" style="margin:6px 0 10px">When feelings feel too big, this helps you come back to right now. Tap a circle each time you notice one.</p>
+      <div style="font-size:2.6rem">${g.e}</div>
+      <p style="font-size:1.15rem;margin:4px 0 12px">Notice <b>${g.n}</b> ${g.t}</p>
+      <div class="ground-dots">${Array.from({ length: g.n }, (_, i) => `<button data-act="tap" class="${i < groundTaps ? 'on' : ''}" aria-label="Noticed one" ${i < groundTaps ? 'disabled' : ''}>${i < groundTaps ? '✓' : ''}</button>`).join('')}</div>`;
+  }
+
+  function shakeJar() {
+    const box = $('#jar');
+    if (!box) return;
+    const items = happyJarItems();
+    if (!items.length) {
+      box.innerHTML = '<p class="small" style="margin:10px 0 0">Your happy jar fills up as you write your "3 good things" and happy entries. 🌱</p>';
+      return;
+    }
+    const it = pick(items);
+    box.innerHTML = `<div class="hand" style="font-size:1.6rem;margin:10px 0 2px">“${esc(it.text)}”</div>
+      <a class="muted small" href="#/entry/${it.e.id}">${fmtShort(it.e.date)}</a>
+      <div style="margin-top:10px"><button class="btn soft" data-act="jar">Shake the jar 🫙</button></div>`;
+  }
+
+  function startBreathing() {
+    const bubble = $('#bubble'), text = $('#breathText'), btn = $('#breathBtn');
+    const rounds = 6;
+    let round = 0;
+    btn.hidden = true;
+    clearTimeout(breathTimer);
+    const alive = () => document.body.contains(bubble);
+    const inhale = () => {
+      if (!alive()) return;
+      round++;
+      text.textContent = `Breathe in... (${round} of ${rounds})`;
+      bubble.style.transitionDuration = '4s';
+      bubble.classList.add('big');
+      breathTimer = setTimeout(exhale, 4000);
+    };
+    const exhale = () => {
+      if (!alive()) return;
+      text.textContent = 'and slowly breathe out...';
+      bubble.style.transitionDuration = '6s';
+      bubble.classList.remove('big');
+      breathTimer = setTimeout(round < rounds ? inhale : done, 6000);
+    };
+    const done = () => {
+      if (!alive()) return;
+      text.textContent = 'Great job! 🌟';
+      btn.textContent = 'Breathe again';
+      btn.hidden = false;
+      settings.comfort.breathe = (settings.comfort.breathe || 0) + 1;
+      saveSettings();
+      const fresh = checkStickers();
+      if (fresh.length) showStickerModal(fresh);
+      else toast('Do you feel a little calmer? 💛');
+    };
+    inhale();
+  }
+
+  function letWorryGo() {
+    const input = $('#worry');
+    const worry = input.value.trim();
+    if (!worry) { toast('Type a worry first 🎈'); return; }
+    input.value = '';
+    const b = document.createElement('div');
+    b.className = 'worry-balloon';
+    b.textContent = '🎈 ' + worry;
+    document.body.appendChild(b);
+    setTimeout(() => b.remove(), 4200);
+    settings.comfort.letgo = (settings.comfort.letgo || 0) + 1;
+    saveSettings();
+    const fresh = checkStickers();
+    setTimeout(() => {
+      if (fresh.length) showStickerModal(fresh);
+      else toast('Bye-bye, worry! You are so brave. 💛');
+    }, 1800);
   }
 
   /* =========================================================
@@ -1245,10 +1555,15 @@
       case 'calendar': return renderCalendar(q);
       case 'stickers': return renderStickers();
       case 'settings': return renderSettings();
+      case 'comfort': return renderComfort();
       default: location.replace('#/');
     }
   }
-  window.addEventListener('hashchange', () => { window.scrollTo(0, 0); route(); });
+  window.addEventListener('hashchange', () => {
+    document.querySelectorAll('.modal-bg, .lightbox').forEach((m) => m.remove());
+    window.scrollTo(0, 0);
+    route();
+  });
 
   if (!settings.pinHash) settings.onboarded = false;
   route();

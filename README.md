@@ -12,6 +12,9 @@ A cute, private journal web app made for iPhone. Entries stay on the phone and a
 - 🔍 Search, favorites and filters
 - 🔥 Streaks and an 18-sticker sticker book
 - 🎨 6 color themes, including dark mode
+- 💛 **Comfort Corner** for hard days: breathing bubble, kind notes, "let a worry float away", 5-4-3-2-1 calm-down, a happy jar of her own good memories, feel-better ideas, and who to talk to
+- 🫂 Gentle, mood-specific encouragement and prompts when she's worried, sad or mad, plus stickers for coping (Brave Heart, Calm Cloud, Let It Go)
+- 🆘 If an entry mentions wanting to hurt herself, a caring message encourages her to talk to a trusted adult and shows the 988 Lifeline (call/text). Nothing is sent anywhere; it only shows on her phone.
 - 💾 Backup and restore to a file
 - 📴 Works offline after the first visit
 
